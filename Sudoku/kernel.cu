@@ -7,13 +7,14 @@
 #include <string>
 #include <iostream>
 #include "utils.cuh"
+#include "cpu.cuh"
 
 const char* boardFilename = "sudoku.txt";
 
+bool solveBoard(char* board, int index);
+
 int main()
 {
-    cudaError_t cudaStatus;
-    // read text file
     std::ifstream inFS;
     inFS.open(boardFilename);
 
@@ -21,30 +22,23 @@ int main()
     getline(inFS, line);
     int nBoards = stoi(line);
 
-    char* originalBoards = new char[nBoards * 9 * 9];
-    int originalBoardsIndex = 0;
+    char* boards = new char[nBoards * 9 * 9];
+    int boardsArrayIndex = 0;
 
     for (int board = 0; board < nBoards; board++) {
-        for (int row = 0; row < 9; row++) {
+        for (int row = 0; row < 9;) {
             getline(inFS, line);
             if (line.length() == 0) continue;
             for (int column = 0; column < 9; column++) {
-                originalBoards[originalBoardsIndex++] = line[column] - '0';
+                boards[boardsArrayIndex++] = line[column] - '0';
             }
+            row++;
         }
     }
 
-
-    // run CPU
-    for (int board = 0; board < nBoards; board++) {
-
-    }
-
-    //
-
-    // run GPU
-
+    solveCpu(boards, nBoards);
 
     return 0;
 }
+
 

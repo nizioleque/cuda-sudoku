@@ -80,6 +80,7 @@
     <CudaCompile Include="kernel.cu" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="cpu.cuh" />
     <ClInclude Include="utils.cuh" />
   </ItemGroup>
   <ItemGroup>
