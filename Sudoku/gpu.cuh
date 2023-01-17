@@ -4,6 +4,8 @@
 #define THREADS_PER_BLOCK 1024
 
 struct BoardKernelData {
+	char* lastEmptyIndex1;
+	char* lastEmptyIndex2;
 	char* gpuBoards1;
 	char* gpuBoards2;
 	int* originalBoard1;
@@ -67,6 +69,29 @@ int solveGpu(char* boards, int nBoards, int** solutionReturn, clock_t* timeGpu) 
 		goto Error;
 	}
 
+	// Allocate arrays for the index of the last empty field in a board
+	char* lastEmptyIndex1;
+	char* lastEmptyIndex2;
+
+	cudaStatus = cudaMalloc((void**)&lastEmptyIndex1, ARRAY_SIZE * sizeof(char));
+	if (cudaStatus != cudaSuccess)
+	{
+		fprintf(stderr, "cudaMalloc failed!");
+		goto Error;
+	}
+	cudaStatus = cudaMalloc((void**)&lastEmptyIndex2, ARRAY_SIZE * sizeof(char));
+	if (cudaStatus != cudaSuccess)
+	{
+		fprintf(stderr, "cudaMalloc failed!");
+		goto Error;
+	}
+	cudaStatus = cudaMemset((void*)lastEmptyIndex1, 0, ARRAY_SIZE * sizeof(char));
+	if (cudaStatus != cudaSuccess)
+	{
+		fprintf(stderr, "cudaMemset failed!");
+		goto Error;
+	}
+
 	// Allocate array for next field possibilities
 	int* possibilities;
 
@@ -115,6 +140,8 @@ int solveGpu(char* boards, int nBoards, int** solutionReturn, clock_t* timeGpu) 
 	}
 
 	BoardKernelData boardKernelData;
+	boardKernelData.lastEmptyIndex1 = lastEmptyIndex1;
+	boardKernelData.lastEmptyIndex2 = lastEmptyIndex2;
 	boardKernelData.gpuBoards1 = gpuBoards1;
 	boardKernelData.gpuBoards2 = gpuBoards2;
 	boardKernelData.originalBoard1 = originalBoard1;
@@ -218,11 +245,15 @@ __global__ void boardKernel(BoardKernelData data, int threadCount, bool switchBo
 	int* otherOriginalBoard = switchBoards ? data.originalBoard1 : data.originalBoard2;
 	int currentOriginal = originalBoard[boardIndex];
 
+	char* lastEmptyIndex = switchBoards ? data.lastEmptyIndex2 : data.lastEmptyIndex1;
+	char* otherLastEmptyIndex = switchBoards ? data.lastEmptyIndex1 : data.lastEmptyIndex2;
+	char currentLastEmpty = lastEmptyIndex[boardIndex];
+
 	int* pos = data.possibilities + 9 * boardIndex * sizeof(int);
 
 	for (int i = 0; i < 9; i++) pos[i] = 1;
 
-	int index = 0;
+	int index = currentLastEmpty;
 	while (board[index] != 0 && index < 81) {
 		index++;
 		continue;
@@ -279,6 +310,7 @@ __global__ void boardKernel(BoardKernelData data, int threadCount, bool switchBo
 		memcpy(copyTarget, board, 81 * sizeof(char));
 		copyTarget[index] = possibility + 1;
 
+		otherLastEmptyIndex[copyIndex] = currentLastEmpty + 1;
 		otherOriginalBoard[copyIndex] = currentOriginal;
 	}
 }
