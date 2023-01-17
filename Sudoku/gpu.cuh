@@ -1,23 +1,23 @@
 #include <cuda_runtime.h>
 #include <cuda_runtime.h>
 #define ARRAY_SIZE 10'000'000
-#define THREADS_PER_BLOCK 512
+#define THREADS_PER_BLOCK 1024
 
 struct BoardKernelData {
 	char* gpuBoards1;
 	char* gpuBoards2;
-	char* originalBoard1;
-	char* originalBoard2;
+	int* originalBoard1;
+	int* originalBoard2;
 	int* possibilities;
 	int* solutions;
 };
 
-int solveGpu(char* boards, int nBoards);
+int solveGpu(char* boards, int nBoards, int** solutionReturn);
 int runKernel(BoardKernelData data, int nBoards);
 __global__ void boardKernel(BoardKernelData data, int threadCount, bool switchBoards);
 __device__ int tmpBoardCount;
 
-int solveGpu(char* boards, int nBoards) {
+int solveGpu(char* boards, int nBoards, int** solutionReturn) {
 	int result = 1;
 
 	// Choose which GPU to run on, change this on a multi-GPU system.
@@ -47,16 +47,16 @@ int solveGpu(char* boards, int nBoards) {
 	}
 
 	// Allocate arrays for original array indices
-	char* originalBoard1;
-	char* originalBoard2;
+	int* originalBoard1;
+	int* originalBoard2;
 
-	cudaStatus = cudaMalloc((void**)&originalBoard1, ARRAY_SIZE * sizeof(char));
+	cudaStatus = cudaMalloc((void**)&originalBoard1, ARRAY_SIZE * sizeof(int));
 	if (cudaStatus != cudaSuccess)
 	{
 		fprintf(stderr, "cudaMalloc failed!");
 		goto Error;
 	}
-	cudaStatus = cudaMalloc((void**)&originalBoard2, ARRAY_SIZE * sizeof(char));
+	cudaStatus = cudaMalloc((void**)&originalBoard2, ARRAY_SIZE * sizeof(int));
 	if (cudaStatus != cudaSuccess)
 	{
 		fprintf(stderr, "cudaMalloc failed!");
@@ -100,10 +100,10 @@ int solveGpu(char* boards, int nBoards) {
 	}
 
 	// Initialize original boards
-	char* originalBoardCpu = new char[nBoards];
+	int* originalBoardCpu = new int[nBoards];
 	for (int i = 0; i < nBoards; i++) originalBoardCpu[i] = i;
 
-	cudaStatus = cudaMemcpy(originalBoard1, originalBoardCpu, nBoards * sizeof(char), cudaMemcpyHostToDevice);
+	cudaStatus = cudaMemcpy(originalBoard1, originalBoardCpu, nBoards * sizeof(int), cudaMemcpyHostToDevice);
 	if (cudaStatus != cudaSuccess)
 	{
 		fprintf(stderr, "cudaMemcpy failed!");
@@ -136,12 +136,15 @@ int solveGpu(char* boards, int nBoards) {
 		}
 	}
 
+	*solutionReturn = hostSolutions;
+
 Error:
 	cudaFree(gpuBoards1);
 	cudaFree(gpuBoards2);
 	cudaFree(originalBoard1);
 	cudaFree(originalBoard2);
 	cudaFree(possibilities);
+	cudaFree(solutions);
 	delete[] originalBoardCpu;
 	return result;
 }
@@ -204,9 +207,9 @@ __global__ void boardKernel(BoardKernelData data, int threadCount, bool switchBo
 	char* otherBoards = switchBoards ? data.gpuBoards1 : data.gpuBoards2;
 	char* board = boards + 81 * boardIndex;
 
-	char* originalBoard = switchBoards ? data.originalBoard2 : data.originalBoard1;
-	char* otherOriginalBoard = switchBoards ? data.originalBoard1 : data.originalBoard2;
-	char currentOriginal = originalBoard[boardIndex];
+	int* originalBoard = switchBoards ? data.originalBoard2 : data.originalBoard1;
+	int* otherOriginalBoard = switchBoards ? data.originalBoard1 : data.originalBoard2;
+	int currentOriginal = originalBoard[boardIndex];
 
 	int* pos = data.possibilities + 9 * boardIndex * sizeof(int);
 
