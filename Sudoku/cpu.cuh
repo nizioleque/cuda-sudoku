@@ -1,6 +1,7 @@
+void solveCpu(char* originalBoards, int nBoards, char** solution);
 bool solveBoard(char* board, int index);
 
-void solveCpu(char* originalBoards, int nBoards) {
+void solveCpu(char* originalBoards, int nBoards, char** solution) {
     char* boards = new char[nBoards * 81];
     memcpy(boards, originalBoards, nBoards * 81 * sizeof(char));
 
@@ -24,6 +25,8 @@ void solveCpu(char* originalBoards, int nBoards) {
             printf("\n");
         }
     }
+
+    *solution = boards;
 }
 
 bool solveBoard(char* board, int index) {

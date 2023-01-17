@@ -28,7 +28,7 @@ int main()
 
 	int nBoards = stoi(nBoardsString);
 
-	char* boards = new char[nBoards * 9 * 9];
+	char* boards = new char[nBoards * 81];
 	int boardsArrayIndex = 0;
 
 	for (int board = 0; board < nBoards; board++) {
@@ -42,17 +42,46 @@ int main()
 		}
 	}
 
+	char* solutionCpu = 0;
+	int* solutionGpu = 0;
+
 	cpuStart = clock();
-	solveCpu(boards, nBoards);
+	solveCpu(boards, nBoards, &solutionCpu);
 	cpuEnd = clock();
 
 	gpuStart = clock();
-	int result = solveGpu(boards, nBoards);
+	int result = solveGpu(boards, nBoards, &solutionGpu);
 	gpuEnd = clock();
+
+	bool allGood = true;
+	for (int i = 0; i < nBoards; i++) {
+		char* solCpu = solutionCpu + i * 81;
+		int* solGpu = solutionGpu + i * 82;
+
+		bool isCorrectOriginal = isCorrect(boards + i * 81);
+
+		bool isCorrectCpu = isCorrectAndFilled(solCpu);
+		if (!isCorrectCpu && isCorrectOriginal) {
+			printf("Error: CPU solution for board %d is incorrect!\n", i);
+			printBoard(solCpu);
+			allGood = false;
+		}
+
+		bool isCorrectGpu = isCorrectAndFilledInt(solGpu);
+		if (!isCorrectGpu && isCorrectOriginal) {
+			printf("Error: GPU solution for board %d is incorrect!\n", i);
+			printBoardInt(solGpu);
+			allGood = false;
+		}
+	}
+
+	if (allGood) printf("All solutions are correct!\n");
 
 	printf("CPU time: %f\nGPU time: %f\n", ((double)cpuEnd - cpuStart) / CLOCKS_PER_SEC, ((double)gpuEnd - cpuEnd) / CLOCKS_PER_SEC);
 
 	delete[] boards;
+	delete[] solutionCpu;
+	delete[] solutionGpu;
 
 	return result;
 
