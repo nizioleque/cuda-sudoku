@@ -1,7 +1,7 @@
 #include <cuda_runtime.h>
 #include <cuda_runtime.h>
-#define ARRAY_SIZE 10'000'000
-#define THREADS_PER_BLOCK 1024
+#define ARRAY_SIZE 17'500'000
+#define THREADS_PER_BLOCK 850
 
 struct BoardKernelData {
 	char* lastEmptyIndex1;
@@ -310,7 +310,7 @@ __global__ void boardKernel(BoardKernelData data, int threadCount, bool switchBo
 		memcpy(copyTarget, board, 81 * sizeof(char));
 		copyTarget[index] = possibility + 1;
 
-		otherLastEmptyIndex[copyIndex] = currentLastEmpty + 1;
+		otherLastEmptyIndex[copyIndex] = index + 1;
 		otherOriginalBoard[copyIndex] = currentOriginal;
 	}
 }
