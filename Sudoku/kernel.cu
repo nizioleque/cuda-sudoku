@@ -18,6 +18,8 @@ int main()
 {
 	std::ifstream inFS;
 	inFS.open(boardFilename);
+	clock_t cpuStart, cpuEnd, gpuStart, gpuEnd;
+
 
 	std::string line;
 	getline(inFS, line);
@@ -37,9 +39,15 @@ int main()
 		}
 	}
 
+	cpuStart = clock();
 	solveCpu(boards, nBoards);
+	cpuEnd = clock();
 
+	gpuStart = clock();
 	int result = solveGpu(boards, nBoards);
+	gpuEnd = clock();
+
+	printf("CPU time: %f\nGPU time: %f\n", ((double)cpuEnd - cpuStart) / CLOCKS_PER_SEC, ((double)gpuEnd - cpuEnd) / CLOCKS_PER_SEC);
 
 	delete[] boards;
 

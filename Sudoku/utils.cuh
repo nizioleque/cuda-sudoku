@@ -1,7 +1,7 @@
 #include <iostream>
 
 #define PRINT_SOLUTIONS_CPU false
-#define PRINT_SOLUTIONS_GPU true
+#define PRINT_SOLUTIONS_GPU false
 
 __host__ __device__ void printBoard(char* board) {
 	for (int i = 0; i < 9; i++) {
