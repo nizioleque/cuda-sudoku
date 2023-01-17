@@ -81,6 +81,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cpu.cuh" />
+    <ClInclude Include="gpu.cuh" />
     <ClInclude Include="utils.cuh" />
   </ItemGroup>
   <ItemGroup>

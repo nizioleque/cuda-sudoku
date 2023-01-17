@@ -13,7 +13,7 @@ void solveCpu(char* boards, int nBoards) {
 
         bool foundSolution = solveBoard(board, 0);
         std::cout << "found solution: " << foundSolution << std::endl;
-        printBoard(board);
+        //printBoard(board);
         std::cout << "\n";
     }
 }
