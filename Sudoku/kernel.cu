@@ -20,10 +20,13 @@ int main()
 	inFS.open(boardFilename);
 	clock_t cpuStart, cpuEnd, gpuStart, gpuEnd;
 
-
 	std::string line;
-	getline(inFS, line);
-	int nBoards = stoi(line);
+	std::string nBoardsString;
+
+	std::cout << "Number of boards to solve: ";
+	std::cin >> nBoardsString;
+
+	int nBoards = stoi(nBoardsString);
 
 	char* boards = new char[nBoards * 9 * 9];
 	int boardsArrayIndex = 0;

@@ -10,7 +10,6 @@ void solveCpu(char* originalBoards, int nBoards) {
         // check if the board is correct
         bool result = isCorrect(board);
         if (!result) {
-            printf("Board %d is incorrect\n", boardIndex);
             continue;
         }
 
