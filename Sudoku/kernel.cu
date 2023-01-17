@@ -36,8 +36,10 @@ int main()
 			row++;
 		}
 	}
+	
+	// TODO use copy to solve CPU
+	//solveCpu(boards, nBoards);
 
-	solveCpu(boards, nBoards);
 
 	int result = solveGpu(boards, nBoards);
 

@@ -1,4 +1,5 @@
 #include <cuda_runtime.h>
+#include <cuda_runtime.h>
 #define ARRAY_SIZE 10'000'000
 #define THREADS_PER_BLOCK 1024
 
@@ -12,7 +13,8 @@ struct BoardKernelData {
 
 int solveGpu(char* boards, int nBoards);
 int runKernel(BoardKernelData data, int nBoards);
-__global__ void boardKernel(BoardKernelData data, int threadCount);
+__global__ void boardKernel(BoardKernelData data, int threadCount, bool switchBoards);
+__device__ int tmpBoardCount;
 
 int solveGpu(char* boards, int nBoards) {
 	int result = 1;
@@ -108,8 +110,6 @@ Error:
 	return result;
 }
 
-__device__ int tmpBoardCount;
-
 int runKernel(BoardKernelData data, int nBoards) {
 	cudaError_t cudaStatus;
 	int currentBoardCount = nBoards;
@@ -118,7 +118,14 @@ int runKernel(BoardKernelData data, int nBoards) {
 	while (currentBoardCount > 0) {
 		int blocks = (currentBoardCount - 1) / THREADS_PER_BLOCK + 1;
 
-		boardKernel << <blocks, THREADS_PER_BLOCK >> > (data, currentBoardCount);
+		int zero = 0;
+		cudaStatus = cudaMemcpyToSymbol(tmpBoardCount, &zero, sizeof(int), 0, cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy failed!");
+			goto Error;
+		}
+
+		boardKernel << <blocks, THREADS_PER_BLOCK >> > (data, currentBoardCount, switchBoards);
 
 		cudaStatus = cudaGetLastError();
 		if (cudaStatus != cudaSuccess)
@@ -154,11 +161,70 @@ Error:
 	return 1;
 }
 
-__global__ void boardKernel(BoardKernelData data, int threadCount) {
-	int boardId = blockIdx.x * blockDim.x + threadIdx.x;
-	if (boardId >= threadCount) return;
+__global__ void boardKernel(BoardKernelData data, int threadCount, bool switchBoards) {
+	cudaError_t cudaStatus;
 
-	tmpBoardCount = 0;
+	int boardIndex = blockIdx.x * blockDim.x + threadIdx.x;
+	if (boardIndex >= threadCount) return;
 
-	printf("siema z kernela %d\n", boardId);
+	char* boards = switchBoards ? data.gpuBoards2 : data.gpuBoards1;
+	char* otherBoards = switchBoards ? data.gpuBoards1 : data.gpuBoards2;
+	char* board = boards + 81 * boardIndex;
+
+	char* originalBoard = switchBoards ? data.originalBoard2 : data.originalBoard1;
+	char* otherOriginalBoard = switchBoards ? data.originalBoard1 : data.originalBoard2;
+	char currentOriginal = originalBoard[boardIndex];
+
+	char* possibilities = data.possibilities + 9 * boardIndex;
+
+	printf("siema z kernela %d, tmp %d\npierwsza liczba z planszy %d\noriginal %d\n", boardIndex, tmpBoardCount, board[0], currentOriginal);
+
+	memset(possibilities, 1, 9 * sizeof(char));
+
+	int index = 0;
+	while (board[index] != 0 && index < 81) {
+		index++;
+		continue;
+	}
+
+	if (index == 81) {
+		printf("FOUND SOLUTION %d\n", boardIndex);
+		return;
+	}
+
+	// calculate x, y
+	int x = index % 9;
+	int y = index / 9;
+
+	// check area
+	int areaStartX = (x / 3) * 3;
+	int areaStartY = (y / 3) * 3;
+	for (int fieldX = 0; fieldX < 3; fieldX++) {
+		for (int fieldY = 0; fieldY < 3;fieldY++) {
+			int fieldIndex = (areaStartY + fieldY) * 9 + (areaStartX + fieldX);
+			int fieldValue = board[fieldIndex];
+			possibilities[fieldValue - 1] = 0;
+		}
+	}
+
+	// check row
+	for (int fieldX = 0; fieldX < 9; fieldX++) {
+		int fieldValue = board[y * 9 + fieldX];
+		possibilities[fieldValue - 1] = 0;
+	}
+
+	// check column
+	for (int fieldY = 0; fieldY < 9; fieldY++) {
+		int fieldValue = board[fieldY * 9 + x];
+		possibilities[fieldValue - 1] = 0;
+	}
+
+	for (int possibility = 0; possibility < 9; possibility++) {
+		if (possibilities[possibility] == 0) continue;
+
+		int copyIndex = atomicAdd(&tmpBoardCount, 1);
+		printf("board %d, possibility %d, copyIndex %d\n", boardIndex, possibility, copyIndex);
+	}
+
+	char* copyTarget = 
 }
