@@ -18,7 +18,6 @@ int main()
 {
 	std::ifstream inFS;
 	inFS.open(boardFilename);
-	clock_t cpuStart, cpuEnd, gpuStart, gpuEnd;
 
 	std::string line;
 	std::string nBoardsString;
@@ -45,13 +44,11 @@ int main()
 	char* solutionCpu = 0;
 	int* solutionGpu = 0;
 
-	cpuStart = clock();
-	solveCpu(boards, nBoards, &solutionCpu);
-	cpuEnd = clock();
+	clock_t timeCpu;
+	solveCpu(boards, nBoards, &solutionCpu, &timeCpu);
 
-	gpuStart = clock();
-	int result = solveGpu(boards, nBoards, &solutionGpu);
-	gpuEnd = clock();
+	clock_t timeGpu;
+	int result = solveGpu(boards, nBoards, &solutionGpu, &timeGpu);
 
 	bool allGood = true;
 	for (int i = 0; i < nBoards; i++) {
@@ -77,7 +74,7 @@ int main()
 
 	if (allGood) printf("All solutions are correct!\n");
 
-	printf("CPU time: %f\nGPU time: %f\n", ((double)cpuEnd - cpuStart) / CLOCKS_PER_SEC, ((double)gpuEnd - cpuEnd) / CLOCKS_PER_SEC);
+	printf("CPU time: %f\nGPU time: %f\n", ((double)timeCpu) / CLOCKS_PER_SEC, ((double)timeGpu) / CLOCKS_PER_SEC);
 
 	delete[] boards;
 	delete[] solutionCpu;

@@ -12,12 +12,16 @@ struct BoardKernelData {
 	int* solutions;
 };
 
-int solveGpu(char* boards, int nBoards, int** solutionReturn);
+int solveGpu(char* boards, int nBoards, int** solutionReturn, clock_t* timeGpu);
 int runKernel(BoardKernelData data, int nBoards);
 __global__ void boardKernel(BoardKernelData data, int threadCount, bool switchBoards);
 __device__ int tmpBoardCount;
 
-int solveGpu(char* boards, int nBoards, int** solutionReturn) {
+int solveGpu(char* boards, int nBoards, int** solutionReturn, clock_t* timeGpu) {
+	clock_t gpuStart, gpuEnd;
+
+	gpuStart = clock();
+
 	int result = 1;
 
 	// Choose which GPU to run on, change this on a multi-GPU system.
@@ -127,6 +131,9 @@ int solveGpu(char* boards, int nBoards, int** solutionReturn) {
 		fprintf(stderr, "cudaMemcpy failed!");
 		goto Error;
 	}
+
+	gpuEnd = clock();
+	*timeGpu = gpuEnd - gpuStart;
 
 	if (PRINT_SOLUTIONS_GPU) {
 		for (int i = 0; i < nBoards; i++) {

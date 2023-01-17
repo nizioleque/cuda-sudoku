@@ -1,7 +1,11 @@
-void solveCpu(char* originalBoards, int nBoards, char** solution);
+void solveCpu(char* originalBoards, int nBoards, char** solution, clock_t* timeCpu);
 bool solveBoard(char* board, int index);
 
-void solveCpu(char* originalBoards, int nBoards, char** solution) {
+void solveCpu(char* originalBoards, int nBoards, char** solution, clock_t* timeCpu) {
+    clock_t cpuStart, cpuEnd;
+
+    cpuStart = clock();
+
     char* boards = new char[nBoards * 81];
     memcpy(boards, originalBoards, nBoards * 81 * sizeof(char));
 
@@ -17,6 +21,8 @@ void solveCpu(char* originalBoards, int nBoards, char** solution) {
         bool foundSolution = solveBoard(board, 0);
     }
 
+    cpuEnd = clock();
+    *timeCpu = cpuEnd - cpuStart;
 
     if (PRINT_SOLUTIONS_CPU) {
         for (int i = 0; i < nBoards; i++) {
