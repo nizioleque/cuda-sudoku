@@ -148,7 +148,6 @@ int runKernel(BoardKernelData data, int nBoards) {
 		}
 
 		switchBoards = !switchBoards;
-		break;
 	}
 
 	return 0;
@@ -162,8 +161,6 @@ Error:
 }
 
 __global__ void boardKernel(BoardKernelData data, int threadCount, bool switchBoards) {
-	cudaError_t cudaStatus;
-
 	int boardIndex = blockIdx.x * blockDim.x + threadIdx.x;
 	if (boardIndex >= threadCount) return;
 
@@ -224,7 +221,10 @@ __global__ void boardKernel(BoardKernelData data, int threadCount, bool switchBo
 
 		int copyIndex = atomicAdd(&tmpBoardCount, 1);
 		printf("board %d, possibility %d, copyIndex %d\n", boardIndex, possibility, copyIndex);
-	}
 
-	char* copyTarget = 
+		char* copyTarget = otherOriginalBoard + 81 * copyIndex;
+		memcpy(copyTarget, board, 81 * sizeof(char));
+
+		otherOriginalBoard[copyIndex] = currentOriginal;
+	}
 }
