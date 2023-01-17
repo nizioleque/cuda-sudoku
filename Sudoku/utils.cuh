@@ -1,5 +1,8 @@
 #include <iostream>
 
+#define PRINT_SOLUTIONS_CPU false
+#define PRINT_SOLUTIONS_GPU true
+
 __host__ __device__ void printBoard(char* board) {
 	for (int i = 0; i < 9; i++) {
 		for (int j = 0; j < 9; j++) {
@@ -18,7 +21,6 @@ __host__ __device__ void printBoardInt(int* board) {
 	}
 }
 
-
 bool isCorrect(char* board) {
 	bool exists[10];
 
@@ -33,9 +35,7 @@ bool isCorrect(char* board) {
 					int fieldIndex = (startY + fieldY) * 9 + (startX + fieldX);
 					int fieldValue = board[fieldIndex];
 					if (fieldValue > 0 && exists[fieldValue]) {
-						std::cout << "incorrect because area: " << areaX << " " << areaY << " " << fieldX << " " << fieldY << " " << fieldValue << " " << exists[fieldValue] << "\n";
 						return false;
-
 					}
 					exists[fieldValue] = true;
 				}
@@ -49,7 +49,6 @@ bool isCorrect(char* board) {
 		for (int fieldX = 0; fieldX < 9; fieldX++) {
 			int fieldValue = board[row * 9 + fieldX];
 			if (fieldValue > 0 && exists[fieldValue]) {
-				std::cout << "incorrect because row: " << row << " " << fieldX << "\n";
 				return false;
 			}
 			exists[fieldValue] = true;
@@ -62,7 +61,6 @@ bool isCorrect(char* board) {
 		for (int fieldY = 0; fieldY < 9; fieldY++) {
 			int fieldValue = board[fieldY * 9 + column];
 			if (fieldValue > 0 && exists[fieldValue]) {
-				std::cout << "incorrect because column: " << column << " " << fieldY << "\n";
 				return false;
 			}
 			exists[fieldValue] = true;

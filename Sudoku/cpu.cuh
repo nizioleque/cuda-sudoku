@@ -1,20 +1,29 @@
 bool solveBoard(char* board, int index);
 
-void solveCpu(char* boards, int nBoards) {
+void solveCpu(char* originalBoards, int nBoards) {
+    char* boards = new char[nBoards * 81];
+    memcpy(boards, originalBoards, nBoards * 81 * sizeof(char));
+
     for (int boardIndex = 0; boardIndex < nBoards; boardIndex++) {
         char* board = boards + 81 * boardIndex;
 
         // check if the board is correct
         bool result = isCorrect(board);
         if (!result) {
-            printf("Board %d is incorrect\n", boardIndex + 1);
+            printf("Board %d is incorrect\n", boardIndex);
             continue;
         }
 
         bool foundSolution = solveBoard(board, 0);
-        std::cout << "found solution: " << foundSolution << std::endl;
-        //printBoard(board);
-        std::cout << "\n";
+    }
+
+
+    if (PRINT_SOLUTIONS_CPU) {
+        for (int i = 0; i < nBoards; i++) {
+            printf("Solution for board %d (CPU):\n", i);
+            printBoard(boards + i * 81);
+            printf("\n");
+        }
     }
 }
 
