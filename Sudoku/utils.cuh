@@ -1,13 +1,23 @@
 #include <iostream>
 
-void printBoard(char* board) {
+__host__ __device__ void printBoard(char* board) {
 	for (int i = 0; i < 9; i++) {
 		for (int j = 0; j < 9; j++) {
-			std::cout << +board[i * 9 + j];
+			printf("%d", board[i * 9 + j]);
 		}
-		std::cout << std::endl;
+		printf("\n");
 	}
 }
+
+__host__ __device__ void printBoardInt(int* board) {
+	for (int i = 0; i < 9; i++) {
+		for (int j = 0; j < 9; j++) {
+			printf("%d", board[i * 9 + j]);
+		}
+		printf("\n");
+	}
+}
+
 
 bool isCorrect(char* board) {
 	bool exists[10];

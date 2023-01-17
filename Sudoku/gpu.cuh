@@ -1,14 +1,17 @@
 #include <cuda_runtime.h>
 #include <cuda_runtime.h>
 #define ARRAY_SIZE 10'000'000
-#define THREADS_PER_BLOCK 1024
+#define THREADS_PER_BLOCK 512
+
+#define debug false
 
 struct BoardKernelData {
 	char* gpuBoards1;
 	char* gpuBoards2;
 	char* originalBoard1;
 	char* originalBoard2;
-	char* possibilities;
+	int* possibilities;
+	int* solutions;
 };
 
 int solveGpu(char* boards, int nBoards);
@@ -63,12 +66,30 @@ int solveGpu(char* boards, int nBoards) {
 	}
 
 	// Allocate array for next field possibilities
-	char* possibilities;
+	int* possibilities;
 
-	cudaStatus = cudaMalloc((void**)&possibilities, ARRAY_SIZE * 9 * sizeof(char));
+	cudaStatus = cudaMalloc((void**)&possibilities, ARRAY_SIZE * 9 * sizeof(int));
 	if (cudaStatus != cudaSuccess)
 	{
 		fprintf(stderr, "cudaMalloc failed!");
+		goto Error;
+	}
+
+	// Allocate array for results
+	int* solutions;
+
+	cudaStatus = cudaMalloc((void**)&solutions, nBoards * 82 * sizeof(int));
+	if (cudaStatus != cudaSuccess)
+	{
+		fprintf(stderr, "cudaMalloc failed!");
+		goto Error;
+	}
+
+	// Initialize solutions with zeros
+	cudaStatus = cudaMemset((void*)solutions, 0, nBoards * 82 * sizeof(int));
+	if (cudaStatus != cudaSuccess)
+	{
+		fprintf(stderr, "cudaMemset (dev_factors_sum) failed!");
 		goto Error;
 	}
 
@@ -97,8 +118,25 @@ int solveGpu(char* boards, int nBoards) {
 	boardKernelData.originalBoard1 = originalBoard1;
 	boardKernelData.originalBoard2 = originalBoard2;
 	boardKernelData.possibilities = possibilities;
+	boardKernelData.solutions = solutions;
 
 	result = runKernel(boardKernelData, nBoards);
+
+	int* hostSolutions = new int[nBoards * 82];
+	cudaStatus = cudaMemcpy(hostSolutions, solutions, nBoards * 82 * sizeof(int), cudaMemcpyDeviceToHost);
+	if (cudaStatus != cudaSuccess)
+	{
+		fprintf(stderr, "cudaMemcpy failed!");
+		goto Error;
+	}
+
+	//for (int i = 0;i < 5;i++) { printf("aaa %d\n", hostSolutions[i]); }
+
+	for (int i = 0; i < nBoards; i++) {
+		printf("Solution for board %d:\n", i);
+		printBoardInt(hostSolutions + i * 82);
+		printf("\n");
+	}
 
 Error:
 	cudaFree(gpuBoards1);
@@ -115,6 +153,7 @@ int runKernel(BoardKernelData data, int nBoards) {
 	int currentBoardCount = nBoards;
 	bool switchBoards = false;
 
+	//int MAX = 10;
 	while (currentBoardCount > 0) {
 		int blocks = (currentBoardCount - 1) / THREADS_PER_BLOCK + 1;
 
@@ -125,6 +164,7 @@ int runKernel(BoardKernelData data, int nBoards) {
 			goto Error;
 		}
 
+		printf("START KERNEL, count %d\n", currentBoardCount);
 		boardKernel << <blocks, THREADS_PER_BLOCK >> > (data, currentBoardCount, switchBoards);
 
 		cudaStatus = cudaGetLastError();
@@ -146,6 +186,8 @@ int runKernel(BoardKernelData data, int nBoards) {
 			fprintf(stderr, "cudaMemcpy failed!");
 			goto Error;
 		}
+
+		printf("read tmpBoardCount %d\n", currentBoardCount);
 
 		switchBoards = !switchBoards;
 	}
@@ -172,11 +214,12 @@ __global__ void boardKernel(BoardKernelData data, int threadCount, bool switchBo
 	char* otherOriginalBoard = switchBoards ? data.originalBoard1 : data.originalBoard2;
 	char currentOriginal = originalBoard[boardIndex];
 
-	char* possibilities = data.possibilities + 9 * boardIndex;
+	int* pos = data.possibilities + 9 * boardIndex * sizeof(int);
 
-	printf("siema z kernela %d, tmp %d\npierwsza liczba z planszy %d\noriginal %d\n", boardIndex, tmpBoardCount, board[0], currentOriginal);
+	if(debug) printf("[%d] tmp %d, pierwsza liczba z planszy %d, original %d\n", boardIndex, tmpBoardCount, board[0], currentOriginal);
 
-	memset(possibilities, 1, 9 * sizeof(char));
+	//memset(possibilities, (char)1, 9 * sizeof(char));
+	for (int i = 0; i < 9; i++) pos[i] = 1;
 
 	int index = 0;
 	while (board[index] != 0 && index < 81) {
@@ -184,8 +227,26 @@ __global__ void boardKernel(BoardKernelData data, int threadCount, bool switchBo
 		continue;
 	}
 
+	//printBoard(board);
+	if (debug) printf("[%d] index %d\n", boardIndex, index);
+
 	if (index == 81) {
+		int* solution = data.solutions + 82 * currentOriginal;
+		int result = atomicAdd(solution + 81, 1);
+
+		if (result != 0) {
+			return;
+		}
+
+		// write solution
 		printf("FOUND SOLUTION %d\n", boardIndex);
+
+		for (int i = 0; i < 81; i++) {
+			solution[i] = board[i];
+		}
+
+		//printBoard(board);
+
 		return;
 	}
 
@@ -200,30 +261,42 @@ __global__ void boardKernel(BoardKernelData data, int threadCount, bool switchBo
 		for (int fieldY = 0; fieldY < 3;fieldY++) {
 			int fieldIndex = (areaStartY + fieldY) * 9 + (areaStartX + fieldX);
 			int fieldValue = board[fieldIndex];
-			possibilities[fieldValue - 1] = 0;
+			if (pos[fieldValue - 1] == 1 && debug) printf("[%d] poss %d -> false (area)\n", boardIndex, fieldValue);
+			pos[fieldValue - 1] = 0;
 		}
 	}
 
 	// check row
 	for (int fieldX = 0; fieldX < 9; fieldX++) {
 		int fieldValue = board[y * 9 + fieldX];
-		possibilities[fieldValue - 1] = 0;
+		if (pos[fieldValue - 1] == 1 && debug) printf("[%d] poss %d -> false (row)\n", boardIndex, fieldValue);
+		pos[fieldValue - 1] = 0;
 	}
 
 	// check column
 	for (int fieldY = 0; fieldY < 9; fieldY++) {
 		int fieldValue = board[fieldY * 9 + x];
-		possibilities[fieldValue - 1] = 0;
+		if (pos[fieldValue - 1] == 1 && debug) printf("[%d] poss %d -> false (column)\n", boardIndex, fieldValue);
+		pos[fieldValue - 1] = 0;
 	}
 
 	for (int possibility = 0; possibility < 9; possibility++) {
-		if (possibilities[possibility] == 0) continue;
+		if (pos[possibility] == 0) continue;
+
+		if (debug) printf("[%d] poss 1 2 3: %d %d %d\n", boardIndex, pos[0], pos[1], pos[2]);
+		if(debug) printf("[%d] poss 4 5 6: %d %d %d\n", boardIndex, pos[4], pos[5], pos[6]);
+		if(debug) printf("[%d] poss 7 8 9: %d %d %d\n", boardIndex, pos[7], pos[8], pos[9]);
+		//printf("%d\n", possibilities[0]);
+
+
 
 		int copyIndex = atomicAdd(&tmpBoardCount, 1);
-		printf("board %d, possibility %d, copyIndex %d\n", boardIndex, possibility, copyIndex);
+		if (debug) printf("[%d] possibility %d, copyIndex %d\n", boardIndex, possibility+1, copyIndex);
 
-		char* copyTarget = otherOriginalBoard + 81 * copyIndex;
+		char* copyTarget = otherBoards + 81 * copyIndex;
 		memcpy(copyTarget, board, 81 * sizeof(char));
+		copyTarget[index] = possibility + 1;
+		//printBoard(copyTarget);
 
 		otherOriginalBoard[copyIndex] = currentOriginal;
 	}
